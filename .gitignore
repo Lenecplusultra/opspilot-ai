@@ -42,5 +42,6 @@ htmlcov/
 .pytest_cache/
 coverage/
 
-# Docker
-.dockerignore
+
+# Eval reports
+backend/eval-reports/
