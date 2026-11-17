@@ -1,78 +1,36 @@
-# OpsPilot AI — Portfolio Descriptions
+# OpsPilot AI: portfolio notes
 
-Use these depending on context. Pick the version that fits.
+## GitHub "About" line
 
----
+AI ops assistant: a LangChain agent debugs distributed systems through 12 MCP tools, with per-role permissions, human approval for destructive actions, an append-only audit log and an event-replay eval harness.
 
-## GitHub Description (one line, goes in the repo "About" field)
+## Resume entry
 
-```
-AI-powered internal engineering assistant with MCP-style tool calling, RBAC enforcement, approval gates, and full audit logging. Built with FastAPI, LangChain, PostgreSQL, and React.
-```
+**OpsPilot AI | MCP-Powered Engineering Assistant**: Python, FastAPI, LangChain, MCP, OpenAI API, PostgreSQL, React
 
----
+- Built an MCP server that gives a LangChain agent 12 operational tools, including GitHub, runbook and metrics connectors, so engineers can debug distributed systems in plain English.
+- Added production-style safety controls: per-role tool permissions, human approval on destructive actions, append-only audit logging, and row-level locking that blocks conflicting actions (verified with concurrent tests on PostgreSQL).
+- Built an eval harness that replays recorded incidents to score agent reliability and safety, and a React dashboard for system health, approvals and audit.
 
-## Resume Bullet Points
+Once you have run the real-model evals, you can add a measured number, for example: "…scores agent reliability (X% pass^3 across 8 incident cases, 0 safety violations on gpt-4o-mini)". Only use numbers from your own report.
 
-Use 2–3 of these depending on space. Lead with the most relevant one for the role.
+## Short portfolio blurb
 
-```
-• Built an AI agent platform (OpsPilot AI) using LangChain and OpenAI tool calling to
-  expose operational tools — service health queries, metrics, and DLQ replay — through
-  a natural language interface, with RBAC enforcement and approval gates for destructive actions.
+OpsPilot is an AI operations assistant for distributed systems. Engineers describe an incident in plain English; a LangChain agent investigates through 12 tools served over MCP (logs, metrics, order traces, the dead-letter queue, runbooks, GitHub commits) and proposes fixes. Destructive actions become approval requests that a human with the right role must approve, every action is written to an append-only audit log, and PostgreSQL row locks keep concurrent actions from colliding. An eval harness replays recorded incidents to measure how reliably and safely the agent behaves.
 
-• Designed and implemented an immutable audit logging system and approval queue workflow
-  that intercepts sensitive AI-driven operations before execution, enforcing human oversight
-  for admin-level actions across role-based user tiers.
+## Talking points
 
-• Architected a FastAPI + PostgreSQL backend with SQLAlchemy ORM, JWT authentication,
-  and a declarative per-tool RBAC policy layer; containerized the full stack with Docker
-  Compose and configured GitHub Actions CI.
+**"Walk me through it."** An engineer asks why an order wasn't charged. The agent traces the order across services, finds payments timing out, sees CPU near zero while the queue grows, and concludes the worker is stuck. It requests a restart, which only creates an approval request. An SRE approves, the restart runs, and the dead-lettered payments get replayed. Every step is in the audit log.
 
-• Built a React + TypeScript admin dashboard featuring a real-time chat interface,
-  pending approval queue, and audit log viewer for operational oversight of AI-driven actions.
-```
+**"How do you stop the AI from doing something dangerous?"** Three layers. The MCP server only lists tools the user's role allows, so the model never sees the rest. Every call is checked again in one executor that all entry points share. And destructive tools never execute when called; they insert a pending approval that someone else must approve.
 
----
+**"What does row-level locking do here?"** Three different races. A partial unique index allows one pending request per resource, so two people can't queue conflicting actions. Approvals lock the request row and use a compare-and-set, so a request runs exactly once even with eight simultaneous approvers. And handlers lock the rows they change, so concurrent changes to the same service serialize. I test all three against real PostgreSQL with threads.
 
-## Portfolio Page — Short Version
+**"How do you evaluate an agent?"** Each incident is an event log I replay into a fresh database, so every run starts identically. The harness checks tool use, safety (no forbidden tools, no unexpected requests, nothing executed without approval) and outcome: it approves the agent's requests with a simulated on-call and checks the fleet actually recovers. That is what catches a restart proposed for a bad deploy. I report pass^k, not just pass rate, because reliability on call means being right every time.
 
-**OpsPilot AI** · Python · FastAPI · LangChain · OpenAI API · PostgreSQL · React
+**"What would you change for production?"** Replace the simulated fleet with real integrations behind the same tool handlers, add database migrations, ship audit entries to write-once storage, and add auto-approval policies for low-risk actions.
 
-An AI-powered internal engineering platform that routes natural language requests to real operational tools — querying service health, metrics, and logs — while enforcing role-based access policies, routing destructive actions through a human-approval gate, and maintaining a complete audit trail of every AI-driven operation.
+## Be precise about these in interviews
 
-[GitHub](https://github.com/yourusername/opspilot-ai) · [Demo](#)
-
----
-
-## Portfolio Page — Full Description
-
-**OpsPilot AI** is a production-style internal engineering assistant designed to demonstrate how AI agents integrate with real operational infrastructure — not just chat, but constrained autonomous action with security guardrails.
-
-**The core problem it solves:** Engineering teams spend significant time on repetitive operational queries (service status, error lookups, metrics checks) and manual operational actions (retries, replays, restarts). An AI agent can handle these, but only safely if the system knows who is asking, what they're allowed to do, and records everything.
-
-**What makes it technically interesting:**
-
-*Tool-calling agent architecture* — The LangChain agent receives a user message and selects the appropriate operational tool by matching against structured schemas. This is fundamentally different from a chatbot: the model isn't generating text, it's deciding which function to call with which parameters based on natural language input.
-
-*RBAC with per-tool enforcement* — Tool access is declared at the tool level, not just at the route level. A viewer can query status; an operator can trigger safe actions; only admins can replay DLQ events. The RBAC check happens inside the tool invocation chain before any action runs.
-
-*Approval gate pattern* — Destructive operations write a pending approval record before executing. The AI cannot bypass this. An admin must explicitly approve or reject the action through the dashboard, making human oversight structurally enforced rather than just policy.
-
-*Immutable audit log* — Every invocation — successful, denied, or pending — writes a database record. The audit table has no update or delete operations by design. This is a real pattern used in compliance-sensitive internal platforms.
-
-**Stack:** Python 3.11, FastAPI, LangChain, OpenAI API, PostgreSQL, SQLAlchemy, Alembic, React 18, TypeScript, Tailwind CSS, Docker, GitHub Actions
-
----
-
-## Interview Talking Points
-
-When asked "tell me about a project":
-
-> "I built an internal AI agent platform where the interesting engineering isn't the AI part — it's the constraints around it. The agent can call operational tools like querying metrics or triggering a service restart, but certain tools require approval before they execute. Every action the agent takes writes to an immutable audit log. Different user roles have different tool permissions enforced at the invocation level, not just the API level. It's the kind of system a platform or SRE team would actually build internally."
-
-Follow-up angles:
-- **On RBAC:** "I designed it declaratively — each tool declares the minimum required role, and the middleware checks this before the LangChain tool chain proceeds."
-- **On the approval pattern:** "The agent doesn't execute destructive operations directly. It writes a pending record with the parameters it would have used, and a human has to approve. This is enforced structurally."
-- **On audit logging:** "Insert-only table. No update or delete. The schema choice reflects the intent — this is a compliance artifact, not mutable state."
-- **On LangChain:** "I used it for the tool-binding layer and the agent executor. The agent uses OpenAI function calling under the hood — the model sees tool schemas and selects which one to invoke."
+- The fleet (services, logs, metrics, DLQ) is simulated in PostgreSQL and rebuilt from event logs. The GitHub connector can call the real API.
+- The agent uses OpenAI through LangChain. CI tests the agent loop and harness with a scripted model; real-model results come from running the evals yourself.

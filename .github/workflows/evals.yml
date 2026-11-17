@@ -1,0 +1,39 @@
+name: Agent evals (real model)
+
+# Manual only: costs API credits. Needs the OPENAI_API_KEY repository secret.
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: OpenAI model
+        default: gpt-4o-mini
+      repeats:
+        description: Runs per case
+        default: "3"
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: pip install -r requirements.txt
+      - name: Run evals
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python -m app.evals --model "${{ inputs.model }}" -k "${{ inputs.repeats }}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-report
+          path: backend/eval-reports/
+      - name: Summary
+        if: always()
+        run: cat eval-reports/*/report.md >> "$GITHUB_STEP_SUMMARY"
