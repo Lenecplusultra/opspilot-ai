@@ -44,3 +44,6 @@ coverage/
 
 # Docker
 .dockerignore
+
+# Eval reports
+backend/eval-reports/

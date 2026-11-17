@@ -1,0 +1,34 @@
+{
+  "description": "payments-worker threads are stuck: payments time out, orders sit in pending_payment, messages pile up in the DLQ. The card processor itself is healthy. Fixed by a restart.",
+  "extends": "baseline",
+  "events": [
+    {"type": "fault_injected", "service": "payments-worker", "fault": "stuck", "status": "degraded"},
+
+    {"type": "metric_series", "service": "payments-worker", "metric": "latency_p95_ms", "values": [205, 215, 198, 220, 210, 2400, 9800, 30000, 30000, 30000, 30000, 30000, 30000]},
+    {"type": "metric_series", "service": "payments-worker", "metric": "error_rate", "values": [0.4, 0.3, 0.5, 0.4, 0.4, 6.0, 22.0, 38.0, 41.0, 40.0, 42.0, 41.0, 41.0]},
+    {"type": "metric_series", "service": "payments-worker", "metric": "cpu_percent", "values": [37, 40, 36, 39, 38, 12, 4, 3, 2, 3, 2, 3, 2]},
+    {"type": "metric_series", "service": "payments-worker", "metric": "queue_depth", "values": [3, 2, 4, 3, 5, 40, 95, 140, 168, 181, 190, 204, 212]},
+
+    {"type": "log", "service": "payments-worker", "level": "WARN", "message": "Worker thread pool exhausted: 32/32 threads busy, 0 idle", "minutes_ago": 34},
+    {"type": "log", "service": "payments-worker", "level": "INFO", "message": "card-processor health check OK (latency 82ms)", "minutes_ago": 30},
+    {"type": "log", "service": "payments-worker", "level": "ERROR", "message": "Timeout after 30s waiting for free worker thread (attempt 3/3) order=1042", "trace_id": "t-1042", "minutes_ago": 28},
+    {"type": "log", "service": "payments-worker", "level": "ERROR", "message": "Moved PaymentRequested to DLQ order=1042", "trace_id": "t-1042", "minutes_ago": 27.5},
+    {"type": "log", "service": "payments-worker", "level": "ERROR", "message": "Timeout after 30s waiting for free worker thread (attempt 3/3) order=1043", "trace_id": "t-1043", "minutes_ago": 21},
+    {"type": "log", "service": "payments-worker", "level": "ERROR", "message": "Moved PaymentRequested to DLQ order=1043", "trace_id": "t-1043", "minutes_ago": 20.5},
+    {"type": "log", "service": "payments-worker", "level": "INFO", "message": "card-processor health check OK (latency 79ms)", "minutes_ago": 15},
+    {"type": "log", "service": "payments-worker", "level": "ERROR", "message": "Timeout after 30s waiting for free worker thread (attempt 3/3) order=1044", "trace_id": "t-1044", "minutes_ago": 12},
+    {"type": "log", "service": "payments-worker", "level": "ERROR", "message": "Moved PaymentRequested to DLQ order=1044", "trace_id": "t-1044", "minutes_ago": 11.5},
+    {"type": "log", "service": "orders-api", "level": "WARN", "message": "Order 1042 still pending_payment after 25 minutes", "trace_id": "t-1042", "minutes_ago": 4},
+
+    {"type": "order_event", "order_id": "1042", "trace_id": "t-1042", "service": "orders-api", "event_type": "OrderPlaced", "status": "ok", "minutes_ago": 29},
+    {"type": "order_event", "order_id": "1042", "trace_id": "t-1042", "service": "payments-worker", "event_type": "PaymentRequested", "status": "failed", "detail": "timeout waiting for worker thread, dead-lettered after 3 attempts", "minutes_ago": 27.5},
+    {"type": "order_event", "order_id": "1043", "trace_id": "t-1043", "service": "orders-api", "event_type": "OrderPlaced", "status": "ok", "minutes_ago": 22},
+    {"type": "order_event", "order_id": "1043", "trace_id": "t-1043", "service": "payments-worker", "event_type": "PaymentRequested", "status": "failed", "detail": "timeout waiting for worker thread, dead-lettered after 3 attempts", "minutes_ago": 20.5},
+    {"type": "order_event", "order_id": "1044", "trace_id": "t-1044", "service": "orders-api", "event_type": "OrderPlaced", "status": "ok", "minutes_ago": 13},
+    {"type": "order_event", "order_id": "1044", "trace_id": "t-1044", "service": "payments-worker", "event_type": "PaymentRequested", "status": "failed", "detail": "timeout waiting for worker thread, dead-lettered after 3 attempts", "minutes_ago": 11.5},
+
+    {"type": "dead_lettered", "consumer": "payments-worker", "event_type": "PaymentRequested", "order_id": "1042", "trace_id": "t-1042", "error": "timeout waiting for worker thread", "minutes_ago": 27.5},
+    {"type": "dead_lettered", "consumer": "payments-worker", "event_type": "PaymentRequested", "order_id": "1043", "trace_id": "t-1043", "error": "timeout waiting for worker thread", "minutes_ago": 20.5},
+    {"type": "dead_lettered", "consumer": "payments-worker", "event_type": "PaymentRequested", "order_id": "1044", "trace_id": "t-1044", "error": "timeout waiting for worker thread", "minutes_ago": 11.5}
+  ]
+}

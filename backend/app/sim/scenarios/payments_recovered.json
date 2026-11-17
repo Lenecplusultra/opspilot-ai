@@ -1,0 +1,15 @@
+{
+  "description": "After the payments outage: payments-worker was restarted and is healthy again, but two PaymentRequested messages are still in the DLQ waiting for replay.",
+  "extends": "baseline",
+  "events": [
+    {"type": "order_event", "order_id": "1042", "trace_id": "t-1042", "service": "orders-api", "event_type": "OrderPlaced", "status": "ok", "minutes_ago": 45},
+    {"type": "order_event", "order_id": "1042", "trace_id": "t-1042", "service": "payments-worker", "event_type": "PaymentRequested", "status": "failed", "detail": "timeout waiting for worker thread, dead-lettered after 3 attempts", "minutes_ago": 43},
+    {"type": "order_event", "order_id": "1043", "trace_id": "t-1043", "service": "orders-api", "event_type": "OrderPlaced", "status": "ok", "minutes_ago": 38},
+    {"type": "order_event", "order_id": "1043", "trace_id": "t-1043", "service": "payments-worker", "event_type": "PaymentRequested", "status": "failed", "detail": "timeout waiting for worker thread, dead-lettered after 3 attempts", "minutes_ago": 36},
+    {"type": "dead_lettered", "consumer": "payments-worker", "event_type": "PaymentRequested", "order_id": "1042", "trace_id": "t-1042", "error": "timeout waiting for worker thread", "minutes_ago": 43},
+    {"type": "dead_lettered", "consumer": "payments-worker", "event_type": "PaymentRequested", "order_id": "1043", "trace_id": "t-1043", "error": "timeout waiting for worker thread", "minutes_ago": 36},
+    {"type": "service_restarted", "service": "payments-worker", "minutes_ago": 12},
+    {"type": "log", "service": "payments-worker", "level": "INFO", "message": "payments-worker restarted by on-call; thread pool 4/32 busy", "minutes_ago": 12},
+    {"type": "log", "service": "payments-worker", "level": "INFO", "message": "Payment captured for order 1051", "trace_id": "t-1051", "minutes_ago": 6}
+  ]
+}

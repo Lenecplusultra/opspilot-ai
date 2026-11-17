@@ -1,0 +1,29 @@
+{
+  "description": "inventory-sync 3.1.0 shipped 25 minutes ago with a bug: stock reservations fail with KeyError 'warehouse_id'. A restart does not help; a rollback to 3.0.2 does.",
+  "extends": "baseline",
+  "events": [
+    {"type": "commit", "service": "inventory-sync", "sha": "e94b7f2", "message": "inventory-sync: read warehouse from new location schema", "author": "sam", "minutes_ago": 40},
+    {"type": "deploy", "service": "inventory-sync", "version": "3.1.0", "minutes_ago": 25},
+    {"type": "fault_injected", "service": "inventory-sync", "fault": "bad_deploy", "status": "degraded"},
+
+    {"type": "metric_series", "service": "inventory-sync", "metric": "error_rate", "values": [0.3, 0.2, 0.3, 0.4, 0.3, 0.3, 0.2, 17.5, 21.0, 24.2, 23.8, 25.1, 24.6]},
+    {"type": "metric_series", "service": "inventory-sync", "metric": "latency_p95_ms", "values": [118, 125, 121, 119, 130, 122, 117, 131, 128, 126, 133, 129, 127]},
+    {"type": "metric_series", "service": "inventory-sync", "metric": "queue_depth", "values": [2, 1, 2, 3, 2, 2, 1, 9, 18, 26, 31, 38, 44]},
+
+    {"type": "log", "service": "inventory-sync", "level": "INFO", "message": "Starting inventory-sync 3.1.0", "minutes_ago": 25},
+    {"type": "log", "service": "inventory-sync", "level": "ERROR", "message": "reserve_stock failed: KeyError: 'warehouse_id' (location payload has 'site_id')", "trace_id": "t-2001", "minutes_ago": 22},
+    {"type": "log", "service": "inventory-sync", "level": "ERROR", "message": "Moved StockReservationRequested to DLQ order=2001", "trace_id": "t-2001", "minutes_ago": 21.5},
+    {"type": "log", "service": "inventory-sync", "level": "ERROR", "message": "reserve_stock failed: KeyError: 'warehouse_id' (location payload has 'site_id')", "trace_id": "t-2002", "minutes_ago": 9},
+    {"type": "log", "service": "inventory-sync", "level": "ERROR", "message": "Moved StockReservationRequested to DLQ order=2002", "trace_id": "t-2002", "minutes_ago": 8.5},
+
+    {"type": "order_event", "order_id": "2001", "trace_id": "t-2001", "service": "orders-api", "event_type": "OrderPlaced", "status": "ok", "minutes_ago": 23},
+    {"type": "order_event", "order_id": "2001", "trace_id": "t-2001", "service": "payments-worker", "event_type": "PaymentCaptured", "status": "ok", "minutes_ago": 22.5},
+    {"type": "order_event", "order_id": "2001", "trace_id": "t-2001", "service": "inventory-sync", "event_type": "StockReservationRequested", "status": "failed", "detail": "KeyError: 'warehouse_id'", "minutes_ago": 21.5},
+    {"type": "order_event", "order_id": "2002", "trace_id": "t-2002", "service": "orders-api", "event_type": "OrderPlaced", "status": "ok", "minutes_ago": 10},
+    {"type": "order_event", "order_id": "2002", "trace_id": "t-2002", "service": "payments-worker", "event_type": "PaymentCaptured", "status": "ok", "minutes_ago": 9.5},
+    {"type": "order_event", "order_id": "2002", "trace_id": "t-2002", "service": "inventory-sync", "event_type": "StockReservationRequested", "status": "failed", "detail": "KeyError: 'warehouse_id'", "minutes_ago": 8.5},
+
+    {"type": "dead_lettered", "consumer": "inventory-sync", "event_type": "StockReservationRequested", "order_id": "2001", "trace_id": "t-2001", "error": "KeyError: 'warehouse_id'", "minutes_ago": 21.5},
+    {"type": "dead_lettered", "consumer": "inventory-sync", "event_type": "StockReservationRequested", "order_id": "2002", "trace_id": "t-2002", "error": "KeyError: 'warehouse_id'", "minutes_ago": 8.5}
+  ]
+}

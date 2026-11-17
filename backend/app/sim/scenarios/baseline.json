@@ -1,0 +1,48 @@
+{
+  "description": "Healthy fleet: five services, normal metrics, one completed order flowing end to end.",
+  "events": [
+    {"type": "service_registered", "service": "api-gateway", "version": "5.2.0", "previous_version": "5.1.4", "depends_on": ["orders-api"], "minutes_ago": 4320},
+    {"type": "service_registered", "service": "orders-api", "version": "2.4.1", "previous_version": "2.4.0", "depends_on": ["payments-worker", "inventory-sync"], "minutes_ago": 2880},
+    {"type": "service_registered", "service": "payments-worker", "version": "1.9.0", "previous_version": "1.8.7", "depends_on": ["card-processor (external)"], "minutes_ago": 7200},
+    {"type": "service_registered", "service": "inventory-sync", "version": "3.0.2", "previous_version": "3.0.1", "depends_on": ["warehouse-db"], "minutes_ago": 10080},
+    {"type": "service_registered", "service": "notification-service", "version": "1.2.0", "depends_on": ["email-provider (external)"], "minutes_ago": 5760},
+
+    {"type": "flag_set", "flag": "new-checkout", "enabled": false},
+    {"type": "flag_set", "flag": "fast-search", "enabled": true},
+    {"type": "flag_set", "flag": "payments-retry-backoff", "enabled": true},
+
+    {"type": "metric_baseline", "service": "api-gateway", "metric": "latency_p95_ms", "value": 95, "jitter": 10},
+    {"type": "metric_baseline", "service": "api-gateway", "metric": "error_rate", "value": 0.2, "jitter": 0.05},
+    {"type": "metric_baseline", "service": "api-gateway", "metric": "cpu_percent", "value": 34, "jitter": 4},
+    {"type": "metric_baseline", "service": "orders-api", "metric": "latency_p95_ms", "value": 140, "jitter": 15},
+    {"type": "metric_baseline", "service": "orders-api", "metric": "error_rate", "value": 0.3, "jitter": 0.08},
+    {"type": "metric_baseline", "service": "orders-api", "metric": "cpu_percent", "value": 41, "jitter": 5},
+    {"type": "metric_baseline", "service": "payments-worker", "metric": "latency_p95_ms", "value": 210, "jitter": 20},
+    {"type": "metric_baseline", "service": "payments-worker", "metric": "error_rate", "value": 0.4, "jitter": 0.1},
+    {"type": "metric_baseline", "service": "payments-worker", "metric": "cpu_percent", "value": 38, "jitter": 5},
+    {"type": "metric_baseline", "service": "payments-worker", "metric": "queue_depth", "value": 3, "jitter": 2},
+    {"type": "metric_baseline", "service": "inventory-sync", "metric": "latency_p95_ms", "value": 120, "jitter": 12},
+    {"type": "metric_baseline", "service": "inventory-sync", "metric": "error_rate", "value": 0.3, "jitter": 0.08},
+    {"type": "metric_baseline", "service": "inventory-sync", "metric": "cpu_percent", "value": 27, "jitter": 4},
+    {"type": "metric_baseline", "service": "inventory-sync", "metric": "queue_depth", "value": 2, "jitter": 1},
+    {"type": "metric_baseline", "service": "notification-service", "metric": "latency_p95_ms", "value": 300, "jitter": 30},
+    {"type": "metric_baseline", "service": "notification-service", "metric": "error_rate", "value": 0.5, "jitter": 0.1},
+    {"type": "metric_baseline", "service": "notification-service", "metric": "cpu_percent", "value": 19, "jitter": 3},
+    {"type": "metric_baseline", "service": "notification-service", "metric": "queue_depth", "value": 4, "jitter": 2},
+
+    {"type": "order_event", "order_id": "1001", "trace_id": "t-1001", "service": "orders-api", "event_type": "OrderPlaced", "status": "ok", "minutes_ago": 50},
+    {"type": "order_event", "order_id": "1001", "trace_id": "t-1001", "service": "payments-worker", "event_type": "PaymentCaptured", "status": "ok", "minutes_ago": 49.5},
+    {"type": "order_event", "order_id": "1001", "trace_id": "t-1001", "service": "inventory-sync", "event_type": "StockReserved", "status": "ok", "minutes_ago": 49},
+    {"type": "order_event", "order_id": "1001", "trace_id": "t-1001", "service": "notification-service", "event_type": "ConfirmationSent", "status": "ok", "minutes_ago": 48.5},
+
+    {"type": "log", "service": "api-gateway", "level": "INFO", "message": "Health check passed", "minutes_ago": 55},
+    {"type": "log", "service": "orders-api", "level": "INFO", "message": "Order 1001 placed", "trace_id": "t-1001", "minutes_ago": 50},
+    {"type": "log", "service": "payments-worker", "level": "INFO", "message": "Payment captured for order 1001", "trace_id": "t-1001", "minutes_ago": 49.5},
+    {"type": "log", "service": "inventory-sync", "level": "INFO", "message": "Reserved 2 units for order 1001", "trace_id": "t-1001", "minutes_ago": 49},
+    {"type": "log", "service": "notification-service", "level": "INFO", "message": "Confirmation email sent for order 1001", "trace_id": "t-1001", "minutes_ago": 48.5},
+
+    {"type": "commit", "service": "orders-api", "sha": "a3f9c21", "message": "orders-api: add idempotency key to order creation", "author": "dana", "minutes_ago": 2900},
+    {"type": "commit", "service": "payments-worker", "sha": "7be0d44", "message": "payments-worker: bump card-processor client to 4.2", "author": "li", "minutes_ago": 7300},
+    {"type": "commit", "service": "inventory-sync", "sha": "c51e8a0", "message": "inventory-sync: batch warehouse reads", "author": "sam", "minutes_ago": 10100}
+  ]
+}
