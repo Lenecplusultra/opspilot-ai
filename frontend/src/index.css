@@ -1,0 +1,72 @@
+@import "tailwindcss";
+@import "@fontsource/barlow/400.css";
+@import "@fontsource/barlow/500.css";
+@import "@fontsource/barlow/600.css";
+@import "@fontsource/barlow-condensed/500.css";
+@import "@fontsource/barlow-condensed/600.css";
+@import "@fontsource/barlow-condensed/700.css";
+
+@theme {
+  --font-sans: "Barlow", system-ui, sans-serif;
+  --font-strip: "Barlow Condensed", "Barlow", system-ui, sans-serif;
+
+  --color-board: #dce3e8;
+  --color-board-deep: #c7d1d9;
+  --color-strip: #f6f1df;
+  --color-strip-edge: #e2d9bd;
+  --color-ink: #1d2b36;
+  --color-ink-soft: #4d5d6a;
+  --color-healthy: #3c7a57;
+  --color-degraded: #c98209;
+  --color-down: #b23a2e;
+  --color-hold: #2f5d9e;
+}
+
+html,
+body {
+  background: var(--color-board);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-hold);
+  outline-offset: 2px;
+}
+
+/* A flight strip: buff paper, a hairline edge, a colored holder on the left. */
+.strip {
+  background: var(--color-strip);
+  border: 1px solid var(--color-strip-edge);
+  border-left-width: 0;
+  box-shadow: 0 1px 0 var(--color-board-deep);
+  position: relative;
+}
+.strip::before {
+  content: "";
+  position: absolute;
+  inset: -1px auto -1px 0;
+  width: 10px;
+  background: var(--holder, var(--color-ink-soft));
+}
+
+@keyframes strip-in {
+  from {
+    transform: translateX(-12px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+/* The one orchestrated moment: strips slot into the board on load. */
+.strip-in {
+  animation: strip-in 320ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .strip-in {
+    animation: none;
+  }
+}
