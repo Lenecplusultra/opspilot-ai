@@ -60,10 +60,19 @@ def test_conflict_is_reported_back_to_the_model(session_factory, users):
     assert [s.status for s in run.steps] == ["pending_approval", "conflict"]
 
 
-def test_agent_stops_at_max_steps(session_factory, users):
-    loop = [{"tool_calls": [{"name": "list_services", "args": {}}]}] * 10
+def test_step_limit_still_produces_an_answer(session_factory, users):
+    loop = [{"tool_calls": [{"name": "list_services", "args": {}}]}] * 3 + [{"final": "Fleet looks healthy."}]
     run = agent(session_factory, users["viewer"], loop, max_steps=3)
     assert run.stop_reason == "max_steps" and len(run.steps) == 3
+    assert run.reply == "Fleet looks healthy."  # forced final call without tools
+
+
+def test_prompt_tells_each_role_what_it_can_and_cannot_request():
+    from app.agents.agent import describe_capabilities
+    viewer, engineer, sre = (describe_capabilities(r) for r in ("viewer", "engineer", "sre"))
+    assert "none; read-only" in viewer and "restart_service (needs engineer" in viewer
+    assert "cannot request: rollback_deploy (needs sre" in engineer
+    assert "cannot request" not in sre and "rollback_deploy (approved by admin" in sre
 
 
 def test_chat_endpoint(client, llm_holder):

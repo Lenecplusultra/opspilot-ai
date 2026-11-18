@@ -24,6 +24,7 @@ from app.tools.base import Tool, ToolError
 
 ServiceName = Field(min_length=1, max_length=64, description="Service name, e.g. 'payments-worker'")
 Reason = Field(default="", max_length=500, description="Short justification shown to the approver")
+LEVELS_AT_LEAST = {"ERROR": ["ERROR"], "WARN": ["ERROR", "WARN"], "INFO": ["ERROR", "WARN", "INFO"]}
 HEALTHY_METRICS = {"latency_p95_ms": 210, "error_rate": 0.4, "cpu_percent": 38, "queue_depth": 3}
 
 # ------------------------------------------------------------------ parameter schemas
@@ -39,7 +40,8 @@ class ServiceParams(BaseModel):
 
 class LogParams(BaseModel):
     service: str | None = Field(default=None, max_length=64, description="Filter by service")
-    level: Literal["ERROR", "WARN", "INFO"] | None = Field(default=None, description="Filter by level")
+    level: Literal["ERROR", "WARN", "INFO"] | None = Field(
+        default=None, description="Minimum severity: WARN returns warnings and errors, ERROR only errors")
     contains: str | None = Field(default=None, max_length=100, description="Case-insensitive text filter")
     trace_id: str | None = Field(default=None, max_length=64, description="Filter by trace id, e.g. 't-1042'")
     minutes: int = Field(default=60, ge=1, le=1440, description="Look back this many minutes")
@@ -155,7 +157,7 @@ def search_logs(db: Session, p: LogParams) -> dict:
     if p.service:
         q = q.where(LogEntry.service_name == p.service)
     if p.level:
-        q = q.where(LogEntry.level == p.level)
+        q = q.where(LogEntry.level.in_(LEVELS_AT_LEAST[p.level]))
     if p.trace_id:
         q = q.where(LogEntry.trace_id == p.trace_id)
     if p.contains:
@@ -283,7 +285,8 @@ ALL_TOOLS: list[Tool] = [
          "Start here for broad questions.", NoParams, Role.VIEWER, list_services),
     Tool("get_service_status", "Detailed status of one service: version, previous version, minutes since deploy, "
          "dependencies, restart count, DLQ count and latest metrics.", ServiceParams, Role.VIEWER, get_service_status),
-    Tool("search_logs", "Search recent log lines by service, level, text or trace id. Newest first.",
+    Tool("search_logs", "Search recent log lines by service, minimum level, text or trace id. Newest first. "
+         "Use level WARN to see both warnings and errors.",
          LogParams, Role.VIEWER, search_logs),
     Tool("query_metrics", "Summarize one metric for a service over a time window: latest, min, max, avg, trend "
          "and the data points.", MetricsParams, Role.VIEWER, query_metrics),
