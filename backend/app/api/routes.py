@@ -1,4 +1,5 @@
 import datetime as dt
+import logging
 from typing import Any, Callable, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -9,6 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, aliased
 
 from app.agents.agent import run_agent
+from app.agents.errors import describe_agent_error
 from app.api.deps import current_user, get_llm, require_role
 from app.connectors import metrics as metrics_conn
 from app.core.config import settings
@@ -21,6 +23,7 @@ from app.sim.replay import ScenarioError, list_scenarios, replay
 from app.tools import REGISTRY
 
 router = APIRouter()
+log = logging.getLogger("opspilot.api")
 
 HTTP_STATUS = {"executed": 200, "failed": 200, "pending_approval": 202, "denied": 403,
                "unknown_tool": 404, "invalid": 422, "conflict": 409}
@@ -121,8 +124,13 @@ async def chat(body: ChatIn, user: User = Depends(current_user), llm: BaseChatMo
                factory: Callable[[], Session] = Depends(get_session_factory)):
     if body.messages[-1].role != "user":
         raise HTTPException(422, "last message must be from the user")
-    run = await run_agent(llm, factory, user.id, [m.model_dump() for m in body.messages],
-                          max_steps=settings.agent_max_steps)
+    try:
+        run = await run_agent(llm, factory, user.id, [m.model_dump() for m in body.messages],
+                              max_steps=settings.agent_max_steps)
+    except Exception as exc:
+        status, message = describe_agent_error(exc)
+        log.exception("agent run failed: %s", message)
+        raise HTTPException(status, message)
     return {
         "reply": run.reply,
         "stop_reason": run.stop_reason,

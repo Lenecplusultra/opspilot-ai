@@ -22,6 +22,7 @@ from langchain_mcp_adapters.tools import load_mcp_tools
 from mcp.shared.memory import create_connected_server_and_client_session
 from sqlalchemy.orm import Session
 
+from app.agents.errors import root_cause
 from app.mcp_server.server import build_server
 from app.models import User
 
@@ -97,6 +98,15 @@ def to_messages(history: list[dict]) -> list[BaseMessage]:
 
 async def run_agent(llm: BaseChatModel, session_factory: Callable[[], Session], user_id: int,
                     history: list[dict], max_steps: int = 8) -> AgentRun:
+    try:
+        return await _run_agent(llm, session_factory, user_id, history, max_steps)
+    except BaseExceptionGroup as group:
+        # The MCP session's task group wraps errors (e.g. an OpenAI 401); surface the real one.
+        raise root_cause(group) from group
+
+
+async def _run_agent(llm: BaseChatModel, session_factory: Callable[[], Session], user_id: int,
+                     history: list[dict], max_steps: int) -> AgentRun:
     with session_factory() as db:
         role = db.get(User, user_id).role
 
