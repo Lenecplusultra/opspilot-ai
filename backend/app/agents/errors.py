@@ -25,7 +25,8 @@ def describe_agent_error(exc: BaseException) -> tuple[int, str]:
         return 502, ("OpenAI rejected the API key (401). Check OPENAI_API_KEY in your .env file, "
                      "then restart the backend.")
     if isinstance(exc, openai.RateLimitError):
-        if getattr(exc, "code", None) == "insufficient_quota" or "quota" in str(exc).lower():
+        text = str(exc).lower()
+        if getattr(exc, "code", None) == "insufficient_quota" or "quota" in text or "credit" in text:
             return 502, ("OpenAI says this account has no remaining quota (429 insufficient_quota). "
                          "Add credits under Billing at platform.openai.com, then try again.")
         return 502, "OpenAI rate-limited the request (429). Wait a few seconds and try again."

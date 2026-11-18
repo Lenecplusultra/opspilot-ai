@@ -61,6 +61,7 @@ def test_tool_call_round_trip_through_openai_format(client, llm_holder):
 @pytest.mark.parametrize("status,code,message,expect", [
     (401, "invalid_api_key", "Incorrect API key provided: sk-****abcd.", "OPENAI_API_KEY"),
     (429, "insufficient_quota", "You exceeded your current quota.", "Billing"),
+    (429, None, "You have no credits remaining. Add credits to continue using the API.", "Billing"),
     (429, "rate_limit_exceeded", "Rate limit reached.", "try again"),
     (404, "model_not_found", "The model does not exist.", "OPENAI_MODEL"),
     (400, "bad_request", "Something about the request.", "Something about the request"),
