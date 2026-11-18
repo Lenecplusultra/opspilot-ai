@@ -46,6 +46,9 @@ def test_search_logs_filters(db, users):
     traced = run(db, users["viewer"], "search_logs", trace_id="t-1042")
     assert {l["service"] for l in traced["logs"]} == {"payments-worker", "orders-api"}
     assert run(db, users["viewer"], "search_logs", contains="THREAD POOL")["count"] == 1
+    # level is a minimum severity: WARN includes errors, ERROR excludes warnings
+    warn = run(db, users["viewer"], "search_logs", service="payments-worker", level="WARN", limit=50)
+    assert {l["level"] for l in warn["logs"]} == {"ERROR", "WARN"} and warn["count"] == 7
     assert "untrusted" in data["note"]
 
 
