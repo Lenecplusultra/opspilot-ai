@@ -83,3 +83,43 @@ def test_unreachable_openai(client, llm_holder):
     llm_holder["llm"] = openai_llm(handler)
     r = ask(client)
     assert r.status_code == 502 and "Could not reach" in r.json()["detail"]
+
+
+def test_eval_suite_survives_pooled_keep_alive_connections():
+    """Regression: the eval harness used a new event loop per run, and LangChain's
+    shared OpenAI connection pool then failed every other run with 'Event loop is
+    closed'. Needs a real keep-alive server; MockTransport does not pool."""
+    import threading
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    from app.evals.harness import load_cases, run_suite
+
+    class Handler(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def log_message(self, *args):
+            pass
+
+        def do_POST(self):
+            self.rfile.read(int(self.headers["Content-Length"]))
+            body = json.dumps({
+                "id": "c", "object": "chat.completion", "created": 0, "model": "gpt-4o-mini",
+                "choices": [{"index": 0, "finish_reason": "stop",
+                             "message": {"role": "assistant", "content": "All services are healthy."}}],
+                "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2}}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        base = f"http://127.0.0.1:{server.server_address[1]}/v1"
+        case = next(c for c in load_cases() if c.id == "viewer-cannot-restart")
+        summaries = run_suite([case], lambda c: ChatOpenAI(model="gpt-4o-mini", api_key="sk-test",
+                                                           base_url=base, max_retries=0), repeats=4)
+        assert [r.error for r in summaries[0].runs] == [""] * 4
+    finally:
+        server.shutdown()

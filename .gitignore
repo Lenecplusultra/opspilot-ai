@@ -45,3 +45,4 @@ coverage/
 
 # Eval reports
 backend/eval-reports/
+eval-reports/

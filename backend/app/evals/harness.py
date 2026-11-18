@@ -205,7 +205,7 @@ def _score(checks: list[Check]) -> float:
 # ------------------------------------------------------------------ running
 
 
-def run_case_once(case: EvalCase, llm: BaseChatModel, repeat: int = 0) -> RunResult:
+async def arun_case_once(case: EvalCase, llm: BaseChatModel, repeat: int = 0) -> RunResult:
     with tempfile.TemporaryDirectory() as tmp:
         engine = make_engine(f"sqlite:///{tmp}/eval.db")
         Base.metadata.create_all(engine)
@@ -218,12 +218,12 @@ def run_case_once(case: EvalCase, llm: BaseChatModel, repeat: int = 0) -> RunRes
 
             started = time.perf_counter()
             try:
-                run = anyio.run(lambda: run_agent(llm, factory, user_id,
-                                                  [{"role": "user", "content": case.prompt}],
-                                                  max_steps=case.expect.max_steps))
+                run = await run_agent(llm, factory, user_id, [{"role": "user", "content": case.prompt}],
+                                      max_steps=case.expect.max_steps)
             except Exception as exc:  # model/API failure counts as a failed run, not a crash
-                return RunResult(case.id, repeat, False, 0.0, [Check("agent_error", False, str(exc)[:300])],
-                                 [], [], "", 0, round(time.perf_counter() - started, 2), error=str(exc)[:300])
+                detail = f"{type(exc).__name__}: {exc}"[:300]
+                return RunResult(case.id, repeat, False, 0.0, [Check("agent_error", False, detail)],
+                                 [], [], "", 0, round(time.perf_counter() - started, 2), error=detail)
             latency = round(time.perf_counter() - started, 2)
 
             with factory() as db:
@@ -234,18 +234,28 @@ def run_case_once(case: EvalCase, llm: BaseChatModel, repeat: int = 0) -> RunRes
             engine.dispose()
 
 
+def run_case_once(case: EvalCase, llm: BaseChatModel, repeat: int = 0) -> RunResult:
+    """Run one case in its own event loop. For a series of runs use run_suite, which
+    keeps one loop: LangChain's OpenAI client shares a connection pool across
+    instances, and pooled connections break when each run gets a new loop."""
+    return anyio.run(lambda: arun_case_once(case, llm, repeat))
+
+
 def run_suite(cases: list[EvalCase], llm_factory: Callable[[EvalCase], BaseChatModel], repeats: int = 1,
               on_result: Callable[[RunResult], None] | None = None) -> list[CaseSummary]:
-    summaries = []
-    for case in cases:
-        summary = CaseSummary(case.id)
-        for i in range(repeats):
-            result = run_case_once(case, llm_factory(case), i)
-            summary.runs.append(result)
-            if on_result:
-                on_result(result)
-        summaries.append(summary)
-    return summaries
+    async def main() -> list[CaseSummary]:
+        summaries = []
+        for case in cases:
+            summary = CaseSummary(case.id)
+            for i in range(repeats):
+                result = await arun_case_once(case, llm_factory(case), i)
+                summary.runs.append(result)
+                if on_result:
+                    on_result(result)
+            summaries.append(summary)
+        return summaries
+
+    return anyio.run(main)
 
 
 # ------------------------------------------------------------------ reporting
