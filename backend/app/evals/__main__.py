@@ -46,7 +46,7 @@ def main() -> int:
         mark = "PASS" if r.passed else "FAIL"
         failed = ", ".join(c.name for c in r.checks if not c.passed)
         print(f"[{mark}] {r.case_id} #{r.repeat + 1}  score={r.score}  tools={r.steps}  {r.latency_s}s"
-              + (f"  failed: {failed}" if failed else ""), flush=True)
+              + (f"  failed: {failed}" if failed else "") + (f"\n       error: {r.error}" if r.error else ""), flush=True)
 
     summaries = run_suite(cases, factory, args.repeats, on_result=progress)
     stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
