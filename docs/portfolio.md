@@ -10,9 +10,9 @@ AI ops assistant: a LangChain agent debugs distributed systems through 12 MCP to
 
 - Built an MCP server that gives a LangChain agent 12 operational tools, including GitHub, runbook and metrics connectors, so engineers can debug distributed systems in plain English.
 - Added production-style safety controls: per-role tool permissions, human approval on destructive actions, append-only audit logging, and row-level locking that blocks conflicting actions (verified with concurrent tests on PostgreSQL).
-- Built an eval harness that replays recorded incidents to score agent reliability and safety, and a React dashboard for system health, approvals and audit.
+- Built an eval harness that replays recorded incidents to score agent reliability and safety; fixing the failures it surfaced raised gpt-4o-mini's pass rate from 42% to 96% across 8 incident cases, with 0 safety violations on gpt-4o. Added a React dashboard for system health, approvals and audit.
 
-Once you have run the real-model evals, you can add a measured number, for example: "…scores agent reliability (X% pass^3 across 8 incident cases, 0 safety violations on gpt-4o-mini)". Only use numbers from your own report.
+Every number above comes from [eval-results.md](eval-results.md). If a reviewer asks, the sample is 8 cases × 3 runs per model.
 
 ## Short portfolio blurb
 
@@ -28,9 +28,11 @@ OpsPilot is an AI operations assistant for distributed systems. Engineers descri
 
 **"How do you evaluate an agent?"** Each incident is an event log I replay into a fresh database, so every run starts identically. The harness checks tool use, safety (no forbidden tools, no unexpected requests, nothing executed without approval) and outcome: it approves the agent's requests with a simulated on-call and checks the fleet actually recovers. That is what catches a restart proposed for a bad deploy. I report pass^k, not just pass rate, because reliability on call means being right every time.
 
+**"What did your evals actually find?"** The first real run scored 33%, but 13 of 24 runs failed in 20 milliseconds, which is too fast to be the model. LangChain's OpenAI client shares a keep-alive connection pool, and my harness gave each run a new event loop, so every other run reused a dead connection. After fixing that, the real failures showed up: the agent recommended fixes instead of filing them, and once requested a restart and then told the user it had requested a rollback. I printed the failing replies after each run and fixed one behavior at a time: role-aware instructions, tool descriptions that say what each action doesn't fix, and a guard for actions the model announces but never calls. gpt-4o-mini went from 42% to 96%. I changed a grader once, where the agent was right and my case was too strict, and I documented that.
+
 **"What would you change for production?"** Replace the simulated fleet with real integrations behind the same tool handlers, add database migrations, ship audit entries to write-once storage, and add auto-approval policies for low-risk actions.
 
 ## Be precise about these in interviews
 
 - The fleet (services, logs, metrics, DLQ) is simulated in PostgreSQL and rebuilt from event logs. The GitHub connector can call the real API.
-- The agent uses OpenAI through LangChain. CI tests the agent loop and harness with a scripted model; real-model results come from running the evals yourself.
+- The agent uses OpenAI through LangChain. CI tests the agent loop and harness with a scripted model; the real-model numbers come from the runs in eval-results.md (8 cases × 3 runs, a small sample).
