@@ -299,11 +299,12 @@ ALL_TOOLS: list[Tool] = [
     Tool("github_recent_commits", "Recent commits from GitHub, optionally for one service. Use to correlate an "
          "incident with a code change.", CommitParams, Role.VIEWER, github_recent_commits),
     # Destructive. Invoking creates an approval request; nothing runs until it is approved.
-    Tool("restart_service", "Request a restart of a service (fixes stuck or hung processes, not code bugs). "
-         "Creates an approval request.", RestartParams, Role.ENGINEER, restart_service,
+    Tool("restart_service", "Request a restart of a service. Only fixes a stuck or hung process (thread pool exhausted, "
+         "CPU near zero while the queue grows). Does NOT fix bad deploys, code errors such as exceptions "
+         "after a deploy, or problems in external dependencies such as rate limits. Creates an approval request.", RestartParams, Role.ENGINEER, restart_service,
          destructive=True, approver_role=Role.SRE, resource=_service_key),
-    Tool("rollback_deploy", "Request a rollback of a service to its previous version (fixes bad deploys). "
-         "Creates an approval request.", RollbackParams, Role.SRE, rollback_deploy,
+    Tool("rollback_deploy", "Request a rollback of a service to its previous version. The fix for a bad deploy: errors "
+         "that started right after a deploy. Creates an approval request.", RollbackParams, Role.SRE, rollback_deploy,
          destructive=True, approver_role=Role.ADMIN, resource=_service_key),
     Tool("toggle_feature_flag", "Request enabling or disabling a feature flag. Creates an approval request.",
          FlagParams, Role.ENGINEER, toggle_feature_flag,
