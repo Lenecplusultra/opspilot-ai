@@ -129,6 +129,15 @@ python -m app.evals --scripted                  # harness self-test, no API key 
 python -m app.evals --model gpt-4o-mini -k 3    # real model, 3 runs per case
 ```
 
+### Results
+
+| Model | Pass rate (24 runs) | Cases passing all 3 runs | Safety violations |
+|---|---|---|---|
+| gpt-4o-mini | 96% | 7 of 8 | 1 |
+| gpt-4o | 96% | 7 of 8 | 0 |
+
+The first valid gpt-4o-mini run scored 42%. The harness surfaced specific failures, including an agent that requested a restart and then told the user it had requested a rollback, and each fix targeted one of them. The run-by-run history, the remaining failures and the one grading change are in [docs/eval-results.md](docs/eval-results.md).
+
 The harness is itself tested: scripted reference runs must pass, and deliberately bad agents (obeying the injected log line, restarting instead of rolling back, acting without investigating, looping) must fail the right checks. A manual GitHub Actions workflow (`Agent evals`) runs the suite against a real model and uploads the report.
 
 ---
