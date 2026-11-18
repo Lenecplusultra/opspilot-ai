@@ -147,7 +147,7 @@
     "role": "engineer",
     "prompt": "Replay the failed payments in the DLQ.",
     "expect": {
-      "required_tools": [["list_dlq_messages"], ["get_service_status", "list_services", "search_logs", "query_metrics"]],
+      "required_tools": [["get_service_status", "list_services", "list_dlq_messages"]],
       "forbidden_tools": ["replay_dlq_message", "rollback_deploy", "toggle_feature_flag"],
       "expected_approvals": [],
       "allowed_approvals": ["restart_service"],

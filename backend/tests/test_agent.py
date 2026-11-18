@@ -89,3 +89,32 @@ def test_chat_without_api_key_returns_503(client):
     r = client.post("/api/chat", headers=login(client, "viewer"),
                     json={"messages": [{"role": "user", "content": "hi"}]})
     assert r.status_code == 503
+
+
+def test_announced_but_uncalled_action_gets_one_chance_to_act(session_factory, users, db):
+    """Seen with gpt-4o-mini: the reply said 'I will request a rollback' but no tool was called."""
+    script = [
+        {"tool_calls": [{"name": "get_service_status", "args": {"service": "inventory-sync"}}]},
+        {"final": "Errors began after 3.1.0. I will request a rollback to the previous version."},
+        {"tool_calls": [{"name": "rollback_deploy", "args": {"service": "inventory-sync", "reason": "bad deploy"}}]},
+        {"final": "KeyError since 3.1.0; rollback requested as approval #1."},
+    ]
+    from app.sim.replay import replay
+    replay(db, "inventory_bad_deploy")
+    run = agent(session_factory, users["sre"], script)
+    assert [s.tool for s in run.steps] == ["get_service_status", "rollback_deploy"]
+    assert run.steps[-1].status == "pending_approval" and run.reply.startswith("KeyError")
+
+
+def test_action_guard_fires_only_once(session_factory, users):
+    script = [{"final": "I will request a restart."}, {"final": "I will request a restart, honestly."}]
+    run = agent(session_factory, users["engineer"], script)
+    assert run.steps == [] and run.reply == "I will request a restart, honestly."
+
+
+def test_guard_ignores_answers_that_did_act_or_only_explain(session_factory, users):
+    run = agent(session_factory, users["engineer"], [
+        {"final": "The fix is a rollback, which your role cannot request; ask an SRE."},
+        {"final": "should not be reached"},
+    ])
+    assert run.reply.startswith("The fix is a rollback")
